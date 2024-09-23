@@ -6,6 +6,7 @@ const SignUp: React.FC = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmpassword, setConfirmpassword] = useState('');
   const [confirmationCode, setConfirmationCode] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -14,6 +15,13 @@ const SignUp: React.FC = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (password !== confirmpassword) {
+      console.log(`${password}  ${confirmpassword}`);
+      setError('Password and Confirm Password do not match');
+      return;
+    }
+
     try {
       await signUp({
         username,
@@ -25,9 +33,9 @@ const SignUp: React.FC = () => {
           },
       });
       setShowConfirmation(true);
-    } catch (error ) {
+    } catch (error: any) {
       console.error('Error:', error);
-      setError("failed to sign up");
+      setError(`failed to sign up : ${error.message}`);
     }
   };
 
@@ -41,9 +49,9 @@ const SignUp: React.FC = () => {
       });
       setIsConfirmed(true);
       // alert('User registration has been completed!！');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Confirm Error:', error);
-      setError("failed to confirm sign up");
+      setError(`failed to confirm sign up : ${error.message}`);
     }
   };
 
@@ -117,7 +125,23 @@ const SignUp: React.FC = () => {
                   />
                 </div>
               </div>
-
+              <div>
+              <label htmlFor="confirmpassword" className="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <div className="mt-1">
+                <input
+                  id="confirmpassword"
+                  name="confirmpassword"
+                  type="password"
+                  autoComplete="confirm-password"
+                  required
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  value={confirmpassword}
+                  onChange={(e) => setConfirmpassword(e.target.value)}
+                />
+              </div>
+            </div>
               <div>
                 <button
                   type="submit"

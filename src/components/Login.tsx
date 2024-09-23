@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getCurrentUser } from 'aws-amplify/auth';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -25,6 +26,21 @@ const Login: React.FC = () => {
       setError('ログインに失敗しました。ユーザー名とパスワードを確認してください。');
     }
   };
+
+
+  useEffect(() => {
+    const checkCurrentUser = async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        console.log("User is authenticated:", currentUser);
+        navigate('/usermap');
+      } catch (error) {
+        console.log("User is not authenticated:", error);
+      }
+    }
+
+    checkCurrentUser();
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
