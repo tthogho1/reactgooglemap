@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, PointerEvent } from 'react';
 import Header from './parts/Header';
 import { APIProvider, Map, useMapsLibrary ,MapEvent} from '@vis.gl/react-google-maps';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,19 +14,55 @@ const GoogleMap = () => {
   const [users, setUsers] = useState<user[]>([]);
   const [iam, setIam] = useState<user>({} as user);
   const geometryLibrary = useMapsLibrary('geometry');
+  const [pointerEventsEnabled, setPointerEventsEnabled] = useState<boolean>(true);
 
   const handleIdle = (event:MapEvent) => {
-    console.log('Map is idle');
-    // イベントの詳細情報にアクセス可能
-    console.log('Map center:', event.map.getCenter()?.toJSON());
-    console.log('Map zoom:', event.map.getZoom());
-  };
+    
+    const center = event.map.getCenter() as google.maps.LatLng;
+    const bounds = event.map.getBounds();
+    const ne = bounds?.getNorthEast() as google.maps.LatLng;
+    const radius = google.maps.geometry.spherical.computeDistanceBetween(center, ne);
+
+    console.log('Map center:', event.map.getCenter()?.toJSON(),radius);
+
+    const locationQuery = {
+      location: {
+        lat: center.lat(),
+        lng: center.lng()
+      },
+      radius: radius
+    };
+    
+    setPointerEventsEnabled(false);
+    fetch('/usersinbounds', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(locationQuery)
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Received data:', data);
+      setUsers(data.users);
+
+    })
+    .catch(error => {
+      console.error('Fetch error:', error);
+    })
+    .finally(() => {
+      setPointerEventsEnabled(true);
+    });
+ 
+  } 
 
   useEffect(() => {
     console.log("start map useEffect");
-   // if (!geometryLibrary) {
-   //   return;
-   // }
 
     if (navigator.geolocation) {
 
@@ -69,7 +105,7 @@ const GoogleMap = () => {
     <APIProvider apiKey={API_KEY} libraries={['geometry']}>
       <Header/>
       <Map
-        style={{width: '100vw', height: '80vh', zIndex: 1}}
+        style={{width: '100vw', height: '80vh', zIndex: 1 , pointerEvents: pointerEventsEnabled ? 'auto' : 'none'}}
         defaultCenter={position}
         defaultZoom={12}
         gestureHandling={'greedy'}
