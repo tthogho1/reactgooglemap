@@ -6,6 +6,7 @@ import Login from './components/Login';
 import GoogleMap from './components/GoogleMap';
 import { cognitoConstants } from './constants/auth';
 import SignUp from './components/SignUp';
+import {WebSocketProvider}  from './components/WebSocketProvider';
 
 Amplify.configure(cognitoConstants);
 
@@ -28,6 +29,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ element, ...rest }) => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
+      <WebSocketProvider>
       <Router>
         <Routes>
           <Route  path="/login" element={<Login/>} />
@@ -37,6 +39,7 @@ const App: React.FC = () => {
           <Route path="/signup" element={<SignUp/>} />
         </Routes>
       </Router>
+      </WebSocketProvider>
     </AuthProvider>
   );
 };

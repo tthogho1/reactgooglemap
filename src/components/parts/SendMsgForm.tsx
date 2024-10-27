@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import type {user} from '../../types/map';
+import { useWebSocket } from '../WebSocketProvider';
 
 const SendMsgForm = () => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<string[]>([]);
   const { user } = useAuth();
-  const [socket, setSocket] = useState(null as WebSocket | null);
+  //const [socket, setSocket] = useState(null as WebSocket | null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isLocked, setIsLocked] = useState(false);
-
+  let { socket } = useWebSocket();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -26,7 +26,7 @@ const SendMsgForm = () => {
 
     if (message && socket) {
         const messageObject = {
-            user_id : user.username,
+            user_id : user?.username,
             to_id : "",
             message: message
         };
@@ -34,40 +34,51 @@ const SendMsgForm = () => {
         socket.send(JSON.stringify(messageObject));
         appendMessage(`Send: ${message}`);
         setMessage('');
-    }
 
-    console.log(`Setting websock for user: ${message}`);
+        console.log(`Setting websock for user: ${message}`);
+    }
   };
 
   useEffect(() => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
+    console.log("WebSocket context updated:", socket);
+  }, [socket]);
+
+  useEffect(() => {
+    if (!socket) {
+      alert("WebSocket connection is not established");
+      console.log("WebSocket connection is not established");
       return;
     }
-    const newsocket = new WebSocket(`ws://localhost:8000/ws?name=${user.username}`) as WebSocket;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      // alert("WebSocket connection is established");
+      appendMessage('System: Established WebSocket connection');
+    }
 
-    newsocket.onopen = function(event) {
+    socket.onopen = function(event) {
         console.log("WebSocket connection is opened");
-        appendMessage('System: Establish WebSocket connection');
+        appendMessage('System: Establish WebSocket connection on open');
     };
   
-    newsocket.onmessage = function(event) {
+    socket.onmessage = function(event) {
        appendMessage(`Receive: ${event.data}`);
        console.log(`Receive: ${event.data}`);
     };
   
-    newsocket.onclose = function(event) {
+    socket.onclose = function(event) {
         console.log("System: WebSocket connection is closed");      
         appendMessage('System: WebSocket connection is closed');
     };
 
-    setSocket(newsocket);
+    //setSocket(newsocket);
 
     return () => {
-      if (newsocket.readyState === WebSocket.OPEN) {
-          newsocket.close();
-      }
+      // close in context provider
+      /*
+            if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.close();
+       } */
     };
-  }, []);
+  }, [socket]);
 
   return (
     <div className="flex items-center space-x-2 p-4 bg-gray-100 rounded-lg shadow-md">

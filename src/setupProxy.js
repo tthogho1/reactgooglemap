@@ -1,10 +1,12 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const { env } = require('process');
+const target = env.REACT_APP_PROXY_URL || 'http://localhost:8000';
 
 module.exports = function(app) {
   app.use(
     '/users',
     createProxyMiddleware({
-      target: 'http://localhost:8000',
+      target: target,
       changeOrigin: true,
     })
   );
@@ -12,7 +14,7 @@ module.exports = function(app) {
   app.use(
     '/position',
     createProxyMiddleware({
-      target: 'http://localhost:8000',
+      target: target,
       changeOrigin: true,
     })
   );
@@ -20,7 +22,15 @@ module.exports = function(app) {
   app.use(
     '/usersinbounds',
     createProxyMiddleware({
-      target: 'http://localhost:8000',
+      target: target,
+      changeOrigin: true,
+    })
+  );
+
+  app.use(
+    '/usersinbounds',
+    createProxyMiddleware({
+      target: target,
       changeOrigin: true,
     })
   );

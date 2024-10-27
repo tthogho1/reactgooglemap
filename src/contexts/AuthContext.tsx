@@ -3,7 +3,7 @@ import { signIn, signOut, getCurrentUser, AuthUser ,fetchUserAttributes } from '
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: any;
+  user: AuthUser|null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -24,10 +24,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuthState = async () => {
     try {
-      const user = await getCurrentUser();
+      const t_user = await getCurrentUser();
       setIsAuthenticated(true);
-      setUser(user);
-      console.log(user.username);
+      setUser(t_user);
+      console.log("user at checkAuthState " , user?.username);
     } catch {
       console.log('No user');
       setIsAuthenticated(false);
