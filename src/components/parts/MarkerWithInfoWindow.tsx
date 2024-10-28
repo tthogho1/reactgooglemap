@@ -2,8 +2,15 @@ import React from 'react';
 import { AdvancedMarker,InfoWindow, useAdvancedMarkerRef } from '@vis.gl/react-google-maps';
 import type {user} from '../../types/map';
 
+
+interface MarkerWithInfoWindowProps  {
+  data: user;
+  isIam: boolean;
+  openVideoChat: () => void;
+}
+
 // マーカーとInfoWindowを組み合わせたコンポーネント
-const MarkerWithInfoWindow = ( data: user ) => {
+const MarkerWithInfoWindow = ( {data,isIam,openVideoChat}: MarkerWithInfoWindowProps ) => {
   const [markerRef, marker] = useAdvancedMarkerRef();
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -22,7 +29,12 @@ const MarkerWithInfoWindow = ( data: user ) => {
           onCloseClick={() => setIsOpen(false)}
         >
           <div>
-            {data.name}
+            <span 
+              className={`${!isIam ? 'underline' : ''}`}
+              {...(!isIam && { onClick: openVideoChat })}  
+            >
+                {data.name}
+              </span>
           </div>
         </InfoWindow>
       )}
