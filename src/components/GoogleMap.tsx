@@ -52,9 +52,7 @@ const GoogleMap = () => {
   return (
     <APIProvider apiKey={API_KEY} libraries={['geometry']}>
       <Header/>
-      <MapCtrl {...position}/>
-      // after getting my position set SendMsgForm
-      {Object.keys(iam).length > 0 && <SendMsgForm/>}
+      <MapCtrl position={position} iam={iam}/>
     </APIProvider>
   );
 }

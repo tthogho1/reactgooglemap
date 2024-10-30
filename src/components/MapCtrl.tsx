@@ -4,16 +4,26 @@ import type {user} from '../types/map';
 import  MarkerWithInfoWindow  from './parts/MarkerWithInfoWindow';
 import VideoChat from './videoChat';
 import { useAuth } from '../contexts/AuthContext';
+import SendMsgForm from './parts/SendMsgForm';
 
-const MapCtrl = (position: { lat: number, lng: number }) => {
+interface MapCtrlProps {
+  position: { lat: number, lng: number };
+  iam: user;
+}
+
+const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
     const Gmap = useMap() as  google.maps.Map ;
     const [pointerEventsEnabled, setPointerEventsEnabled] = useState<boolean>(true);
     const [users, setUsers] = useState<user[]>([]);
     const [isVideoChatOpen, setIsVideoChatOpen] = useState<boolean>(false);
     const { user } = useAuth();
+    const [receiver,setReceiver] = useState<string>(''); // to_id
+    const [isCalled, setIsCalled] = useState<boolean>(false);
 
-    const openVideoChat = () => {
+    const openVideoChat = (name: string, called:boolean) => {
       setIsVideoChatOpen(true);
+      setReceiver(name);
+      setIsCalled(called);
     }
 
     const closeVideoChat = () => {
@@ -73,7 +83,7 @@ const MapCtrl = (position: { lat: number, lng: number }) => {
   
     return (
       <div>
-        <VideoChat isOpen={isVideoChatOpen} closeVideoChat={closeVideoChat}/>
+        <VideoChat isOpen={isVideoChatOpen} closeVideoChat={closeVideoChat} receiver={receiver} isCalled={isCalled}/>
         <Map
           style={{width: '100vw', height: '80vh', zIndex: 1 , pointerEvents: pointerEventsEnabled ? 'auto' : 'none'}}
           defaultCenter={position}
@@ -89,6 +99,7 @@ const MapCtrl = (position: { lat: number, lng: number }) => {
             openVideoChat={openVideoChat} />
           ))} 
         </Map>
+        {Object.keys(iam).length > 0 && <SendMsgForm openVideoChat={openVideoChat} />}
       </div>
     );
   };
