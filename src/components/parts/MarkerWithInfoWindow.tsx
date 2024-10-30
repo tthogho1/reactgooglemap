@@ -6,7 +6,7 @@ import type {user} from '../../types/map';
 interface MarkerWithInfoWindowProps  {
   data: user;
   isIam: boolean;
-  openVideoChat: () => void;
+  openVideoChat: (name: string, called:boolean) => void;
 }
 
 // マーカーとInfoWindowを組み合わせたコンポーネント
@@ -31,7 +31,7 @@ const MarkerWithInfoWindow = ( {data,isIam,openVideoChat}: MarkerWithInfoWindowP
           <div>
             <span 
               className={`${!isIam ? 'underline' : ''}`}
-              {...(!isIam && { onClick: openVideoChat })}  
+              {...(!isIam && { onClick: () => openVideoChat(data.name,false) })}  
             >
                 {data.name}
               </span>

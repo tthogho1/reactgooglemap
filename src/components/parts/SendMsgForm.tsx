@@ -1,15 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import type {user} from '../../types/map';
+import ConfirmDialog  from './ConfirmDialog';
 import { useWebSocket } from '../WebSocketProvider';
 
-const SendMsgForm = () => {
+
+interface ChildComponentProps {
+  // true if called
+  openVideoChat: (name: string, called:boolean) => void;
+}
+
+const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<string[]>([]);
   const { user } = useAuth();
   //const [socket, setSocket] = useState(null as WebSocket | null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  let { socket } = useWebSocket();
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState('');
+
+  const { socket } = useWebSocket();
+  const [toName, setToName] = useState('');
+
+  const handleConfirm = () => {
+    setIsConfirmOpen(false);
+    openVideoChat(toName,true);  
+  };
+
+  const handleCancel = () => {
+    setIsConfirmOpen(false);
+  };
+
+  const showConfirm = (message: string,name: string) => {
+    setConfirmMessage(message);
+    setIsConfirmOpen(true);
+    setToName(name);
+  };
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -60,8 +86,23 @@ const SendMsgForm = () => {
     };
   
     socket.onmessage = function(event) {
-       appendMessage(`Receive: ${event.data}`);
-       console.log(`Receive: ${event.data}`);
+      console.log(`Receive: ${event.data}`);
+      
+      const data = JSON.parse(event.data);
+      if (data.message.type){
+        switch(data.message.type){
+          case 'offer':
+            showConfirm(`receive offer from ${data.user_id}?`,data.user_id);
+            break;
+          case 'answer':
+          case 'ice':
+        }
+       // console.log(`Receive: ${data.message.type}`);
+        //appendMessage(`Receive: ${data.message.type}`);
+      }else{
+        appendMessage(`Receive from: [${data.user_id}] : ${data.message}`);
+      }
+
     };
   
     socket.onclose = function(event) {
@@ -101,6 +142,13 @@ const SendMsgForm = () => {
       >
         Send
       </button>
+
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        message={confirmMessage}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 };
