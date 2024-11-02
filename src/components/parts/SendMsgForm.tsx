@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import ConfirmDialog  from './ConfirmDialog';
 import { useWebSocket } from '../WebSocketProvider';
-
+import { ChatMessage, Sdp } from '../../types/webrtc';
+import eventBus from '../class/EventBus';
 
 interface ChildComponentProps {
   // true if called
-  openVideoChat: (name: string, called:boolean) => void;
+  openVideoChat: (name: string, data: ChatMessage | null) => void;
 }
 
 const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
@@ -17,23 +18,24 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
-
+  const [sdp, setSdp] = useState<ChatMessage | null>(null);
   const { socket } = useWebSocket();
   const [toName, setToName] = useState('');
 
   const handleConfirm = () => {
     setIsConfirmOpen(false);
-    openVideoChat(toName,true);  
+    openVideoChat(toName, sdp);  
   };
 
   const handleCancel = () => {
     setIsConfirmOpen(false);
   };
 
-  const showConfirm = (message: string,name: string) => {
+  const showConfirm = (message: string, data: ChatMessage) => {
     setConfirmMessage(message);
     setIsConfirmOpen(true);
-    setToName(name);
+    setToName(data.user_id);
+    setSdp(data);
   };
 
 
@@ -86,18 +88,24 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
     };
   
     socket.onmessage = function(event) {
-      console.log(`Receive: ${event.data}`);
+      // console.log(`Receive: ${event.data}`);
       
-      const data = JSON.parse(event.data);
-      if (data.message.type){
-        switch(data.message.type){
+      const data = JSON.parse(event.data) as ChatMessage;
+      const sdp = data.message as Sdp;
+      if (sdp.type){
+        switch(sdp.type){
           case 'offer':
-            showConfirm(`receive offer from ${data.user_id}?`,data.user_id);
+            showConfirm(`receive offer from ${data.user_id}?`,data);
             break;
           case 'answer':
+            console.log(`receive answer from ${data.user_id}`);
+            eventBus.emit('setAnswer', data);
+            break;
           case 'ice':
+            console.log(`receive ice from ${data.user_id}`);
+            eventBus.emit('setCandidate', data);
+            break;
         }
-       // console.log(`Receive: ${data.message.type}`);
         //appendMessage(`Receive: ${data.message.type}`);
       }else{
         appendMessage(`Receive from: [${data.user_id}] : ${data.message}`);
@@ -106,9 +114,13 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
     };
   
     socket.onclose = function(event) {
-        console.log("System: WebSocket connection is closed");      
+        console.error(`WebSocket connection is closed ${event.code} ${event.reason}`);      
         appendMessage('System: WebSocket connection is closed');
     };
+
+    socket.onerror = function(error) {
+        console.error(`WebSocket connection error: ${error}`);
+    }
 
     //setSocket(newsocket);
 

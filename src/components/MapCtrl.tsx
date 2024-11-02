@@ -5,6 +5,7 @@ import  MarkerWithInfoWindow  from './parts/MarkerWithInfoWindow';
 import VideoChat from './videoChat';
 import { useAuth } from '../contexts/AuthContext';
 import SendMsgForm from './parts/SendMsgForm';
+import { ChatMessage } from '../types/webrtc';
 
 interface MapCtrlProps {
   position: { lat: number, lng: number };
@@ -18,12 +19,13 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
     const [isVideoChatOpen, setIsVideoChatOpen] = useState<boolean>(false);
     const { user } = useAuth();
     const [receiver,setReceiver] = useState<string>(''); // to_id
-    const [isCalled, setIsCalled] = useState<boolean>(false);
+    const [sdp,setSdp] = useState<ChatMessage|null>(null); // isCalled
 
-    const openVideoChat = (name: string, called:boolean) => {
+    const openVideoChat = (name: string, data: ChatMessage | null) => {
+      console.log('openVideoChat',data);
+      setSdp(data);
       setIsVideoChatOpen(true);
       setReceiver(name);
-      setIsCalled(called);
     }
 
     const closeVideoChat = () => {
@@ -83,7 +85,7 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
   
     return (
       <div>
-        <VideoChat isOpen={isVideoChatOpen} closeVideoChat={closeVideoChat} receiver={receiver} isCalled={isCalled}/>
+        <VideoChat isOpen={isVideoChatOpen} closeVideoChat={closeVideoChat} receiver={receiver} sdp={sdp}/>
         <Map
           style={{width: '100vw', height: '80vh', zIndex: 1 , pointerEvents: pointerEventsEnabled ? 'auto' : 'none'}}
           defaultCenter={position}
