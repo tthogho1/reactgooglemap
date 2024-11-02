@@ -2,16 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from 'lucide-react';
 import { useWebSocket } from './WebSocketProvider';
 import { useAuth } from '../contexts/AuthContext';
-import type {Sdp,ChatMessage} from '../types/webrtc';
+import type {Sdp,Ice,ChatMessage} from '../types/webrtc';
+import eventBus from './class/EventBus';
 
 interface VideoChatProps {
   isOpen: boolean;
   closeVideoChat: () => void;
   receiver: string;
-  isCalled: boolean;
+  sdp: ChatMessage | null;
 }
 
-const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver, isCalled}) => {
+const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver, sdp}) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
@@ -27,19 +28,118 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
     ]
   };
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    if (sdp == null){
+      return;
+    }
+
+    // receive offer
+    (async () => {
+    // sdp != null  
+      const pc = new RTCPeerConnection(configuration);
+      pc.ontrack = (event) => {
+        console.log('ontrack');
+        const remoteStream = event.streams[0];
+        if (remoteVideoRef && remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteStream;
+        }
+      }; 
+      
+      // don't forget to remove eventBus
+      eventBus.on('setCandidate', (data: ChatMessage) => {
+        const ice = data.message as Ice;
+        console.log(`setCandidate from ${data.user_id}`);
+        pc.addIceCandidate(ice.candidate).then(()=>
+          {
+            console.log(`add ice candidate from ${data.user_id}`)
+          }
+        ).catch(
+          error => console.log(error)
+        );
+      });
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach(
+        track => {
+          console.log('Adding track:', track.kind)
+          pc.addTrack(track, stream)
+        }
+      );
+    
+      // ビデオ要素への表示
+      if (localVideoRef && localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      } 
+
+      await pc.setRemoteDescription({
+        type: 'offer',
+        sdp: (sdp.message as Sdp).sdp
+      })
+      .then(
+        () => console.log('setRemoteDescription')
+      ).catch(
+        error => console.log(error)
+      );
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer)
+      .then(
+        () => console.log('setLocalDescription')
+      ).catch(
+        error => console.log(error)
+      );
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log('onicecandidate');        
+          const messageObject = {
+            user_id : user.user?.username,
+            to_id : receiver,
+            message: { type: 'ice', candidate: event.candidate }
+          }
+          socket?.socket?.send(JSON.stringify(messageObject));
+        }
+      };
+
+      const messageObject = {
+        user_id : user.user?.username,
+        to_id : receiver,
+        message :{type :'answer', sdp: answer.sdp}
+      } 
+      socket?.socket?.send(JSON.stringify(messageObject));    
+    })()
+  }, [sdp, isOpen]);
+
   if (!isOpen) return null;
 
+  // Open video chat 
   const handleConnect = async () => {
     setIsConnected(true);
     const pc = new RTCPeerConnection(configuration);
     pc.ontrack = (event) => {
-      console.log('ontrack');
+      // console.log('ontrack');
 
       const remoteStream = event.streams[0];
       if (remoteVideoRef && remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
       }
     };
+
+    // don't forget to remove eventBus
+    eventBus.on('setCandidate', (data: ChatMessage) => {
+      const ice = data.message as Ice;
+      console.log(`setCandidate from ${data.user_id}`);
+      pc.addIceCandidate(ice.candidate).then(()=>
+        {
+          console.log(`add ice candidate from ${data.user_id}`);
+        }
+      ).catch(
+        error => console.log(error)
+      );
+    });
 
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     stream.getTracks().forEach(
@@ -56,6 +156,18 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
+
+    // don't forget to remove eventBus
+    eventBus.on('setAnswer', (data: ChatMessage) => {
+      if (pc.signalingState !== 'stable') {
+        console.log(`setAnswer from ${data.user_id}`);
+
+        const sdp = data.message as Sdp;
+        pc.setRemoteDescription({ type: 'answer', sdp: sdp.sdp });
+      }else{
+        console.log('setAnswer fail because of not stable');
+      }
+    });
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
