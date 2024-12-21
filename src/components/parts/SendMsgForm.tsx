@@ -4,23 +4,26 @@ import ConfirmDialog  from './ConfirmDialog';
 import { useWebSocket } from '../WebSocketProvider';
 import { ChatMessage, Sdp } from '../../types/webrtc';
 import eventBus from '../class/EventBus';
+import { user } from '../../types/map';
 
 interface ChildComponentProps {
   // true if called
   openVideoChat: (name: string, data: ChatMessage | null) => void;
+  users: user[];
 }
 
-const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
+const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<string[]>([]);
   const { user } = useAuth();
-  //const [socket, setSocket] = useState(null as WebSocket | null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [sdp, setSdp] = useState<ChatMessage | null>(null);
   const { socket } = useWebSocket();
   const [toName, setToName] = useState('');
+  const [selectedMsgUser, setSelectedMsgUser] = useState('');
+  const BROAD = "broadcast";
 
   const handleConfirm = () => {
     setIsConfirmOpen(false);
@@ -38,7 +41,6 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
     setSdp(data);
   };
 
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -50,12 +52,11 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
   };
 
   const handleSetWebsock = () => {
-    // const toName = toNameInput.value;
 
     if (message && socket) {
         const messageObject = {
             user_id : user?.username,
-            to_id : "",
+            to_id : selectedMsgUser == BROAD ? "" : selectedMsgUser,
             message: message
         };
 
@@ -88,8 +89,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
     };
   
     socket.onmessage = function(event) {
-      // console.log(`Receive: ${event.data}`);
-      
+
       const data = JSON.parse(event.data) as ChatMessage;
       const sdp = data.message as Sdp;
       if (sdp.type){
@@ -106,55 +106,66 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat }) => {
             eventBus.emit('setCandidate', data);
             break;
         }
-        //appendMessage(`Receive: ${data.message.type}`);
       }else{
         appendMessage(`Receive from: [${data.user_id}] : ${data.message}`);
       }
-
     };
   
     socket.onclose = function(event) {
-        console.error(`WebSocket connection is closed ${event.code} ${event.reason}`);      
-        appendMessage('System: WebSocket connection is closed');
+      console.error(`WebSocket connection is closed ${event.code} ${event.reason}`);      
+      appendMessage('System: WebSocket connection is closed');
     };
 
     socket.onerror = function(error) {
         console.error(`WebSocket connection error: ${error}`);
     }
 
-    //setSocket(newsocket);
-
-    return () => {
-      // close in context provider
-      /*
-            if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.close();
-       } */
+    return () => {  
     };
   }, [socket]);
 
   return (
-    <div className="flex items-center space-x-2 p-4 bg-gray-100 rounded-lg shadow-md">
-      <div className="flex-grow h-64 overflow-y-auto bg-white p-4 rounded-md border border-gray-300">
+    <div className="flex flex-col items-center space-y-2 p-4 bg-gray-100 rounded-lg shadow-md md:flex-row md:space-y-0 md:space-x-2">
+      <div className="flex-grow h-64 overflow-y-auto bg-white p-4 rounded-md border border-gray-300 md:w-full">
         {messages.map((msg, index) => (
           <div key={index} className="mb-2">{msg}</div>
         ))}
         <div ref={messagesEndRef} />
+      </div>  
+      <div className="md:flex md:space-x-2 md:w-full"> 
+        <div className="w-full md:flex md:flex-col md:space-y-2">
+          <div className="w-full md:flex md:space-x-2"> 
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Enter Message"
+              className="w-full md:flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent md:w-full"
+            />
+            <button
+              onClick={handleSetWebsock}
+              className="w-full md:w-1/4 px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-300 ease-in-out md:w-full"
+            >
+              Send
+            </button>
+          </div>
+          <div className="w-full md:flex md:items-center md:space-x-2">
+            <label className="md:w-1/5 text-lg font-bold text-gray-700">Select User : </label>
+            <select
+              value={selectedMsgUser}
+              onChange={(e) => setSelectedMsgUser(e.target.value)}
+              className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">{BROAD}</option>
+              {users.map((user) => (
+                <option key={user.name} value={user.name}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
-      <input
-        type="text"
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="Enter Message"
-        className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
-      <button
-        onClick={handleSetWebsock}
-        className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-300 ease-in-out"
-      >
-        Send
-      </button>
-
       <ConfirmDialog
         isOpen={isConfirmOpen}
         message={confirmMessage}
