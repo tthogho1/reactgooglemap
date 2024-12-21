@@ -101,7 +101,7 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
             openVideoChat={openVideoChat} />
           ))} 
         </Map>
-        {Object.keys(iam).length > 0 && <SendMsgForm openVideoChat={openVideoChat} />}
+        {Object.keys(iam).length > 0 && <SendMsgForm users={users} openVideoChat={openVideoChat} />}
       </div>
     );
   };

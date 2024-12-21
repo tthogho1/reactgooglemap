@@ -4,7 +4,6 @@ import { APIProvider} from '@vis.gl/react-google-maps';
 import { useAuth } from '../contexts/AuthContext';
 import type {user} from '../types/map';
 import {sendUserPosition} from '../api/backend';
-import SendMsgForm from './parts/SendMsgForm';
 import MapCtrl from './MapCtrl';
 
 const GoogleMap = () => {
@@ -17,7 +16,6 @@ const GoogleMap = () => {
     console.log("start map useEffect");
 
     if (navigator.geolocation) {
-
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           setPosition({
