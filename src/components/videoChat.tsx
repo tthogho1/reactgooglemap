@@ -20,6 +20,7 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const socket = useWebSocket();
   const user = useAuth();
+  const [peerConnection, setPeerConnection] = useState<RTCPeerConnection|null>(null);
 
   const configuration = {
     iceServers: [
@@ -39,7 +40,10 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
     // receive offer
     (async () => {
     // sdp != null  
+      setIsConnected(true);
+      
       const pc = new RTCPeerConnection(configuration);
+      setPeerConnection(pc); // set for close
       pc.ontrack = (event) => {
         console.log('ontrack');
         const remoteStream = event.streams[0];
@@ -119,6 +123,8 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   const handleConnect = async () => {
     setIsConnected(true);
     const pc = new RTCPeerConnection(configuration);
+    setPeerConnection(pc); // set for close
+
     pc.ontrack = (event) => {
       // console.log('ontrack');
 
@@ -192,6 +198,32 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   };
 
   const handleDisconnect = () => {
+    peerConnection?.close();
+    if (remoteVideoRef && remoteVideoRef.current) {
+      const remoteStream = remoteVideoRef.current.srcObject as MediaStream;
+      const tracks = remoteStream?.getTracks();
+      if (tracks) {
+        tracks.forEach(track => track.stop());
+      }
+      remoteVideoRef.current.srcObject = null;
+    }
+
+    if (localVideoRef && localVideoRef.current) {
+      const localStream = localVideoRef.current.srcObject as MediaStream;
+      const tracks = localStream?.getTracks();
+      if (tracks) {
+        tracks.forEach(track => track.stop());
+      }
+      localVideoRef.current.srcObject = null;
+    }
+
+    const messageObject : ChatMessage = {
+      user_id : user.user?.username  as string,
+      to_id : receiver ,
+      message: { type: 'close'}   
+     }
+    socket.socket?.send(JSON.stringify(messageObject));
+
     setIsConnected(false);
     closeVideoChat();
     // ここで切断処理を実装

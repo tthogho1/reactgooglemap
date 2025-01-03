@@ -13,7 +13,7 @@ const GoogleMap = () => {
   const [iam, setIam] = useState<user>({} as user);
 
   useEffect(() => {
-    console.log("start map useEffect");
+    // console.log("start map useEffect");
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(

@@ -105,6 +105,10 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
             console.log(`receive ice from ${data.user_id}`);
             eventBus.emit('setCandidate', data);
             break;
+          case 'close':
+            console.log(`receive close from ${data.user_id}`);
+            // eventBus.emit('setClose', data);
+            break;
         }
       }else{
         appendMessage(`Receive from: [${data.user_id}] : ${data.message}`);
