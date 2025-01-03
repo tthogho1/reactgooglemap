@@ -7,7 +7,8 @@ type ChatMessage = {
   type MessageContent = 
     | string
     | Sdp
-    | Ice;
+    | Ice
+    | Close; // Close is not protocol, use for disconnect opponent
   
   type Sdp = {
     type: string;
@@ -19,6 +20,11 @@ type ChatMessage = {
     candidate: Candidate;
   };
   
+  // Close is not protocol , use for disconnect opponent
+  type Close = {
+    type: string;
+  };
+
   type Candidate = {
     candidate: string;
     sdpMid: string;

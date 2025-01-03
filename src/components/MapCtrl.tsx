@@ -39,7 +39,7 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
       const ne = bounds?.getNorthEast() as google.maps.LatLng;
       const radius = google.maps.geometry.spherical.computeDistanceBetween(center, ne);
 
-      console.log('Map center:', event.map.getCenter()?.toJSON(),radius);
+      // console.log('Map center:', event.map.getCenter()?.toJSON(),radius);
   
       const locationQuery = {
         location: {
@@ -64,7 +64,7 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
         return response.json();
       })
       .then(data => {
-        console.log('Received data:', data);
+        // console.log('Received data:', data);
         setUsers(data.users);
       })
       .catch(error => {
