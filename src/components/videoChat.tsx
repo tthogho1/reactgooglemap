@@ -175,6 +175,12 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       }
     });
 
+    // don't forget to remove eventBus
+    eventBus.on('setClose', (data: ChatMessage) => {
+      console.log(`setClose from ${data.user_id}`);
+      handleDisconnect();
+    });
+
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         console.log('onicecandidate');
@@ -194,7 +200,6 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       message: { type: 'offer', sdp: offer.sdp } as Sdp   
      }
     socket?.socket?.send(JSON.stringify(messageObject));
-
   };
 
   const handleDisconnect = () => {

@@ -3,6 +3,7 @@ import { useAuth} from '../contexts/AuthContext';
 
 interface WebSocketContextValue {
   socket: WebSocket | null;
+  updateSocket: () => void;
   sendMessage: (message: string) => void;
 }
 
@@ -13,7 +14,7 @@ interface WebSocketProviderProps {
 }
 
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }) => {
-  const [socket,setSocket ] = useState<WebSocket | null>(null);
+  const [socket,setSocket] = useState<WebSocket | null>(null);
   const { user ,isAuthenticated} = useAuth();
   const websocketServer = process.env.REACT_APP_WEBSOCKET_URL;
 
@@ -48,8 +49,17 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     }
   };
 
+  const updateSocket = () => {
+    //if (socket) {
+    //  socket.close(); // 既存のソケットを閉じる
+    //}
+    const newSocket = new WebSocket(`${websocketServer}/ws?name=${user?.username}`);
+    setSocket(newSocket);
+  };
+
   const value: WebSocketContextValue = {
     socket: socket,
+    updateSocket,
     sendMessage
   };
 
