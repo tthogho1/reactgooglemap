@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import ConfirmDialog  from './ConfirmDialog';
-import { useWebSocket } from '../WebSocketProvider';
+import { useWebSocket, WebSocketProvider } from '../WebSocketProvider';
 import { ChatMessage, Sdp } from '../../types/webrtc';
 import eventBus from '../class/EventBus';
 import { user } from '../../types/map';
@@ -20,7 +20,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [sdp, setSdp] = useState<ChatMessage | null>(null);
-  const { socket } = useWebSocket();
+  const { socket , updateSocket} = useWebSocket();
   const [toName, setToName] = useState('');
   const [selectedMsgUser, setSelectedMsgUser] = useState('');
   const BROAD = "broadcast";
@@ -107,7 +107,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
             break;
           case 'close':
             console.log(`receive close from ${data.user_id}`);
-            // eventBus.emit('setClose', data);
+            eventBus.emit('setClose', data);
             break;
         }
       }else{
@@ -116,7 +116,10 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
     };
   
     socket.onclose = function(event) {
-      console.error(`WebSocket connection is closed ${event.code} ${event.reason}`);      
+      console.error(`WebSocket connection is closed ${event.code} ${event.reason}`);  
+      if (event.reason === "1006") {
+        updateSocket();
+      }    
       appendMessage('System: WebSocket connection is closed');
     };
 
