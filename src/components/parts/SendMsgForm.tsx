@@ -117,7 +117,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
   
     socket.onclose = function(event) {
       console.error(`WebSocket connection is closed ${event.code} ${event.reason}`);  
-      if (event.reason === "1006") {
+      if (event.code === 1006) {
         updateSocket();
       }    
       appendMessage('System: WebSocket connection is closed');
