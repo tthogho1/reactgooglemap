@@ -5,6 +5,7 @@ import { useWebSocket, WebSocketProvider } from '../WebSocketProvider';
 import { ChatMessage, Sdp } from '../../types/webrtc';
 import eventBus from '../class/EventBus';
 import { user } from '../../types/map';
+import { updatePositionOnServer } from '../../api/backend';
 
 interface ChildComponentProps {
   // true if called
@@ -114,11 +115,16 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
         appendMessage(`Receive from: [${data.user_id}] : ${data.message}`);
       }
     };
-  
+
     socket.onclose = function(event) {
       console.error(`WebSocket connection is closed ${event.code} ${event.reason}`);  
       if (event.code === 1006) {
-        updateSocket();
+        setTimeout(() => {
+          updateSocket();
+          if (user !== null) {
+            updatePositionOnServer(user);
+          }
+        }, 2000);
       }    
       appendMessage('System: WebSocket connection is closed');
     };
