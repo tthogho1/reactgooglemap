@@ -20,20 +20,95 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const socket = useWebSocket();
   const user = useAuth();
-  const [peerConnection, setPeerConnection] = useState<RTCPeerConnection|null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
   const configuration = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun.stunprotocol.org:3478' },
       // 必要に応じてTURNサーバーも追加
     ]
   };
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
+    console.log('isConnected changed:', isConnected);
+  }, [isConnected]);
+ 
+  const createPeerConnection = () => {
+    const pc = new RTCPeerConnection(configuration);
+    peerConnectionRef.current = pc; // set for close
+
+    pc.ontrack = (event) => {
+      // console.log(event.streams);
+      const remoteStream = event.streams[0];
+      if (remoteVideoRef && remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+    }; 
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log('onicecandidate');
+
+        const messageObject = {
+          user_id : user.user?.username,
+          to_id : receiver,
+          message: { type: 'ice', candidate: event.candidate }
+        }
+        socket?.socket?.send(JSON.stringify(messageObject));
+      }
+    };
+
+    pc.onconnectionstatechange = (event) => {
+      console.log("connectionState:" + pc.connectionState);
+    };
+
+    pc.oniceconnectionstatechange = (event) => {
+      console.log("iceConnectionState:" + pc.iceConnectionState);
+    };
+
+    pc.onsignalingstatechange = (event) => {
+      console.log("signalingState:" + pc.signalingState);
+      console.log("signalingState:" + event);
     }
-    if (sdp == null){
+    return pc;
+  };
+
+  const setEventBus = (pc: RTCPeerConnection) => {
+    // don't forget to remove eventBus
+    console.log("setEventBus start at" + new Date());
+    eventBus.on('setCandidate', (data: ChatMessage) => {
+      const ice = data.message as Ice;
+      console.log(`setCandidate from ${data.user_id}`);
+      pc.addIceCandidate(ice.candidate).then(()=>
+        {
+          console.log(`add ice candidate from ${data.user_id}`)
+        }
+      ).catch(
+        error => console.log('icecandidate error' + error)
+      );
+    });
+       
+    eventBus.on('setAnswer', (data: ChatMessage) => {
+      if (pc.signalingState !== 'stable') {
+        console.log(`setAnswer from ${data.user_id}`);
+
+        const sdp = data.message as Sdp;
+        pc.setRemoteDescription({ type: 'answer', sdp: sdp.sdp });
+      }else{
+        console.log('setAnswer fail because of not stable');
+      }
+    });
+
+    eventBus.on('setClose', (data: ChatMessage) => {
+      console.log(`setClose from ${data.user_id}`);
+      receiveDisconnect();
+    });
+  }
+
+  useEffect(() => {
+    if (!isOpen || sdp == null){ 
       return;
     }
 
@@ -41,30 +116,10 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
     (async () => {
     // sdp != null  
       setIsConnected(true);
-      
-      const pc = new RTCPeerConnection(configuration);
-      setPeerConnection(pc); // set for close
-      pc.ontrack = (event) => {
-        console.log('ontrack');
-        const remoteStream = event.streams[0];
-        if (remoteVideoRef && remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = remoteStream;
-        }
-      }; 
-      
-      // don't forget to remove eventBus
-      eventBus.on('setCandidate', (data: ChatMessage) => {
-        const ice = data.message as Ice;
-        console.log(`setCandidate from ${data.user_id}`);
-        pc.addIceCandidate(ice.candidate).then(()=>
-          {
-            console.log(`add ice candidate from ${data.user_id}`)
-          }
-        ).catch(
-          error => console.log(error)
-        );
-      });
-      
+
+      const pc = createPeerConnection();
+      setEventBus(pc);
+
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       stream.getTracks().forEach(
         track => {
@@ -78,35 +133,23 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
         localVideoRef.current.srcObject = stream;
       } 
 
-      await pc.setRemoteDescription({
-        type: 'offer',
-        sdp: (sdp.message as Sdp).sdp
-      })
-      .then(
-        () => console.log('setRemoteDescription')
-      ).catch(
-        error => console.log(error)
-      );
+      try {
+        await pc.setRemoteDescription({
+          type: 'offer',
+          sdp: (sdp.message as Sdp).sdp
+        });
+        console.log('setRemoteDescription');
+      } catch (error) {
+        console.log("Offer setRemoteDescription", error);
+      }
 
       const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer)
-      .then(
-        () => console.log('setLocalDescription')
-      ).catch(
-        error => console.log(error)
-      );
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          console.log('onicecandidate');        
-          const messageObject = {
-            user_id : user.user?.username,
-            to_id : receiver,
-            message: { type: 'ice', candidate: event.candidate }
-          }
-          socket?.socket?.send(JSON.stringify(messageObject));
-        }
-      };
+      try {
+        await pc.setLocalDescription(answer);
+        console.log('setLocalDescription');
+      } catch (error) {
+        console.log(error);
+      }
 
       const messageObject = {
         user_id : user.user?.username,
@@ -122,30 +165,9 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   // Open video chat 
   const handleConnect = async () => {
     setIsConnected(true);
-    const pc = new RTCPeerConnection(configuration);
-    setPeerConnection(pc); // set for close
 
-    pc.ontrack = (event) => {
-      // console.log('ontrack');
-
-      const remoteStream = event.streams[0];
-      if (remoteVideoRef && remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
-      }
-    };
-
-    // don't forget to remove eventBus
-    eventBus.on('setCandidate', (data: ChatMessage) => {
-      const ice = data.message as Ice;
-      console.log(`setCandidate from ${data.user_id}`);
-      pc.addIceCandidate(ice.candidate).then(()=>
-        {
-          console.log(`add ice candidate from ${data.user_id}`);
-        }
-      ).catch(
-        error => console.log(error)
-      );
-    });
+    const pc = createPeerConnection();
+    setEventBus(pc);
 
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     stream.getTracks().forEach(
@@ -163,37 +185,6 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    // don't forget to remove eventBus
-    eventBus.on('setAnswer', (data: ChatMessage) => {
-      if (pc.signalingState !== 'stable') {
-        console.log(`setAnswer from ${data.user_id}`);
-
-        const sdp = data.message as Sdp;
-        pc.setRemoteDescription({ type: 'answer', sdp: sdp.sdp });
-      }else{
-        console.log('setAnswer fail because of not stable');
-      }
-    });
-
-    // don't forget to remove eventBus
-    eventBus.on('setClose', (data: ChatMessage) => {
-      console.log(`setClose from ${data.user_id}`);
-      handleDisconnect();
-    });
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('onicecandidate');
-
-        const messageObject = {
-          user_id : user.user?.username,
-          to_id : receiver,
-          message: { type: 'ice', candidate: event.candidate }
-        }
-        socket?.socket?.send(JSON.stringify(messageObject));
-      }
-    };
-
     const messageObject : ChatMessage = {
       user_id : user.user?.username  as string,
       to_id : receiver ,
@@ -203,7 +194,9 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   };
 
   const handleDisconnect = () => {
-    peerConnection?.close();
+
+    peerConnectionRef.current?.close();
+    peerConnectionRef.current = null;
     if (remoteVideoRef && remoteVideoRef.current) {
       const remoteStream = remoteVideoRef.current.srcObject as MediaStream;
       const tracks = remoteStream?.getTracks();
@@ -222,17 +215,42 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       localVideoRef.current.srcObject = null;
     }
 
-    const messageObject : ChatMessage = {
-      user_id : user.user?.username  as string,
-      to_id : receiver ,
-      message: { type: 'close'}   
-     }
-    socket.socket?.send(JSON.stringify(messageObject));
-
     setIsConnected(false);
     closeVideoChat();
-    // ここで切断処理を実装
-    // onClose();
+
+     if (isConnected) {
+        const messageObject : ChatMessage = {
+          user_id : user.user?.username  as string,
+          to_id : receiver ,
+          message: { type: 'close'}   
+        }
+        socket.socket?.send(JSON.stringify(messageObject));
+     }
+  };
+
+  const receiveDisconnect = () => {
+
+    peerConnectionRef.current?.close();
+    peerConnectionRef.current = null;
+    if (remoteVideoRef && remoteVideoRef.current) {
+      const remoteStream = remoteVideoRef.current.srcObject as MediaStream;
+      const tracks = remoteStream?.getTracks();
+      if (tracks) {
+        tracks.forEach(track => track.stop());
+      }
+      remoteVideoRef.current.srcObject = null;
+    }
+
+    if (localVideoRef && localVideoRef.current) {
+      const localStream = localVideoRef.current.srcObject as MediaStream;
+      const tracks = localStream?.getTracks();
+      if (tracks) {
+        tracks.forEach(track => track.stop());
+      }
+      localVideoRef.current.srcObject = null;
+    }
+
+    setIsConnected(false);
   };
 
   const toggleMute = () => {
