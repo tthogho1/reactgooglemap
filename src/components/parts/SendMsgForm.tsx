@@ -103,7 +103,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
             eventBus.emit('setAnswer', data);
             break;
           case 'ice':
-            console.log(`receive ice from ${data.user_id}`);
+            console.log(`receive ice from ${data.user_id} at ` + new Date());
             eventBus.emit('setCandidate', data);
             break;
           case 'close':
