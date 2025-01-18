@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import ConfirmDialog  from './ConfirmDialog';
-import { useWebSocket, WebSocketProvider } from '../WebSocketProvider';
+//import { useRTCPeerConnection } from '../RTCPeerConnectionProvider';
+import { useWebSocket } from '../WebSocketProvider';
 import { ChatMessage, Sdp } from '../../types/webrtc';
 import eventBus from '../class/EventBus';
 import { user } from '../../types/map';
 import { updatePositionOnServer } from '../../api/backend';
+import webRtc from '../class/WebRtc';
 
 interface ChildComponentProps {
   // true if called
@@ -22,6 +24,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
   const [confirmMessage, setConfirmMessage] = useState('');
   const [sdp, setSdp] = useState<ChatMessage | null>(null);
   const { socket , updateSocket} = useWebSocket();
+  //const {peerConnection,setAnswer} = useRTCPeerConnection();
   const [toName, setToName] = useState('');
   const [selectedMsgUser, setSelectedMsgUser] = useState('');
   const BROAD = "broadcast";
@@ -100,11 +103,13 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
             break;
           case 'answer':
             console.log(`receive answer from ${data.user_id}`);
-            eventBus.emit('setAnswer', data);
+            // eventBus.emit('setAnswer', data);
+            webRtc.setAnswer(data);
             break;
           case 'ice':
             console.log(`receive ice from ${data.user_id} at ` + new Date());
-            eventBus.emit('setCandidate', data);
+            //eventBus.emit('setCandidate', data);
+            webRtc.setCandidate(data);
             break;
           case 'close':
             console.log(`receive close from ${data.user_id}`);
