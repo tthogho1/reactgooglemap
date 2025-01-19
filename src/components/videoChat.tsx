@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from 'lucide-react';
 import { useWebSocket } from './WebSocketProvider';
+import WebRtc from './class/WebRtc';
 import { useAuth } from '../contexts/AuthContext';
 import type {Sdp,Ice,ChatMessage} from '../types/webrtc';
 import eventBus from './class/EventBus';
+
 
 interface VideoChatProps {
   isOpen: boolean;
@@ -20,24 +22,13 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const socket = useWebSocket();
   const user = useAuth();
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-
-  const configuration = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun.stunprotocol.org:3478' },
-      // 必要に応じてTURNサーバーも追加
-    ]
-  };
 
   useEffect(() => {
     console.log('isConnected changed:', isConnected);
   }, [isConnected]);
  
-  const createPeerConnection = () => {
-    const pc = new RTCPeerConnection(configuration);
-    peerConnectionRef.current = pc; // set for close
+  const initializePeerConnection = () => {
+    const pc = WebRtc.getRtcPeerConnection(); //
 
     pc.ontrack = (event) => {
       // console.log(event.streams);
@@ -60,51 +51,20 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       }
     };
 
-    pc.onconnectionstatechange = (event) => {
-      console.log("connectionState:" + pc.connectionState);
-    };
-
-    pc.oniceconnectionstatechange = (event) => {
-      console.log("iceConnectionState:" + pc.iceConnectionState);
-    };
-
-    pc.onsignalingstatechange = (event) => {
-      console.log("signalingState:" + pc.signalingState);
-      console.log("signalingState:" + event);
-    }
-    return pc;
   };
 
-  const setEventBus = (pc: RTCPeerConnection) => {
+  const setClose = (data: ChatMessage) => {
+    console.log(`setClose from ${data.user_id}`);
+    receiveDisconnect();
+  }
+
+  const setEventBus = () => {
     // don't forget to remove eventBus
-    console.log("setEventBus start at" + new Date());
-    eventBus.on('setCandidate', (data: ChatMessage) => {
-      const ice = data.message as Ice;
-      console.log(`setCandidate from ${data.user_id}`);
-      pc.addIceCandidate(ice.candidate).then(()=>
-        {
-          console.log(`add ice candidate from ${data.user_id}`)
-        }
-      ).catch(
-        error => console.log('icecandidate error' + error)
-      );
-    });
-       
-    eventBus.on('setAnswer', (data: ChatMessage) => {
-      if (pc.signalingState !== 'stable') {
-        console.log(`setAnswer from ${data.user_id}`);
+    eventBus.on('setClose', setClose);
+  }
 
-        const sdp = data.message as Sdp;
-        pc.setRemoteDescription({ type: 'answer', sdp: sdp.sdp });
-      }else{
-        console.log('setAnswer fail because of not stable');
-      }
-    });
-
-    eventBus.on('setClose', (data: ChatMessage) => {
-      console.log(`setClose from ${data.user_id}`);
-      receiveDisconnect();
-    });
+  const offEventBus = () => {       
+    eventBus.off('setClose');
   }
 
   useEffect(() => {
@@ -114,11 +74,11 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
 
     // receive offer
     (async () => {
-    // sdp != null  
+      const pc = WebRtc.getRtcPeerConnection(); //
       setIsConnected(true);
 
-      const pc = createPeerConnection();
-      setEventBus(pc);
+      initializePeerConnection();
+      setEventBus();
 
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       stream.getTracks().forEach(
@@ -138,6 +98,7 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
           type: 'offer',
           sdp: (sdp.message as Sdp).sdp
         });
+
         console.log('setRemoteDescription');
       } catch (error) {
         console.log("Offer setRemoteDescription", error);
@@ -164,10 +125,12 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
 
   // Open video chat 
   const handleConnect = async () => {
+    const pc = WebRtc.getRtcPeerConnection(); //
+    console.log("signalingState:" + pc.signalingState);
     setIsConnected(true);
 
-    const pc = createPeerConnection();
-    setEventBus(pc);
+    initializePeerConnection();
+    setEventBus();
 
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     stream.getTracks().forEach(
@@ -194,9 +157,12 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   };
 
   const handleDisconnect = () => {
+    const pc = WebRtc.getRtcPeerConnection(); 
+    offEventBus();
 
-    peerConnectionRef.current?.close();
-    peerConnectionRef.current = null;
+    pc.close();
+    //WebRtc.reCreateRtcPeerConnection();
+
     if (remoteVideoRef && remoteVideoRef.current) {
       const remoteStream = remoteVideoRef.current.srcObject as MediaStream;
       const tracks = remoteStream?.getTracks();
@@ -229,9 +195,12 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   };
 
   const receiveDisconnect = () => {
+    const pc = WebRtc.getRtcPeerConnection(); //
+    offEventBus();
 
-    peerConnectionRef.current?.close();
-    peerConnectionRef.current = null;
+    pc.close();
+    //
+
     if (remoteVideoRef && remoteVideoRef.current) {
       const remoteStream = remoteVideoRef.current.srcObject as MediaStream;
       const tracks = remoteStream?.getTracks();
