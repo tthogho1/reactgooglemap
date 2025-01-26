@@ -5,6 +5,11 @@ class WebRtc {
     private peerConnection: RTCPeerConnection | null = null;
     private ices: any[] = [];
 
+    private constructor() {
+      this.peerConnection = new RTCPeerConnection(this.configuration);
+      this.setSignalingState(this.peerConnection);
+    }
+
     private configuration = {
       iceServers: [
           { urls: 'stun:stun.l.google.com:19302' }
@@ -29,21 +34,18 @@ class WebRtc {
     
         pc.onsignalingstatechange = (event) => {
           console.log("signalingState:" + pc.signalingState);
-          if (pc.signalingState === 'stable'
-            || pc.signalingState === 'have-remote-offer'
-            || pc.signalingState === 'have-local-offer'
-          ) {
+          if (pc.signalingState === 'stable')
+           // || pc.signalingState === 'have-remote-offer'
+           // || pc.signalingState === 'have-local-offer'
+           {
+            console.log('call setSavedCandidates');
             this.setSavedCandidates();
           }
         }
-    }
-
-    private constructor() {
-      this.peerConnection = new RTCPeerConnection(this.configuration);
-      this.setSignalingState(this.peerConnection);
     } 
 
     setSavedCandidates() {
+
       const iceCandidates = this.ices;
       iceCandidates.forEach((data, index) => {
         this.setCandidate(data);
@@ -75,11 +77,12 @@ class WebRtc {
     }
 
     setCandidate = (data: ChatMessage) => {
-      const ice = data.message as Ice;
-      console.log(`setCandidate from ${data.user_id}`);
-      
-      //const pc = WebRtc.getRtcPeerConnection(); //
-      if (!this.peerConnection?.remoteDescription || this.peerConnection?.signalingState === 'closed') {
+      const ice = data.message as Ice;      
+
+      if (!this.peerConnection?.remoteDescription || this.peerConnection?.signalingState === 'closed' ||
+        !(this.peerConnection?.signalingState === 'stable')){
+         // || this.peerConnection?.signalingState === 'have-remote-offer'
+         // || this.peerConnection?.signalingState === 'have-local-offer')) {
         console.log(`push ice candidate from ${data.user_id}` + this.peerConnection?.signalingState);
         this.ices.push(data);
         return;
@@ -103,6 +106,46 @@ class WebRtc {
       this.peerConnection = new RTCPeerConnection(this.configuration);
     }
 
+    setRemoteDescription = async ( sdp: ChatMessage) => {
+      try {
+        await this.peerConnection?.setRemoteDescription({
+          type: 'offer',
+          sdp: (sdp.message as Sdp).sdp
+        });
+        console.log('setRemoteDescription');
+      } catch (error) {
+        console.log("Offer setRemoteDescription", error);
+      }
+    }
+
+
+    setLocalDescription = async (answer: RTCSessionDescriptionInit) => {
+      try {
+        await this.peerConnection?.setLocalDescription(answer);
+        console.log('setLocalDescription');
+      } catch (error) {
+        console.log(error);
+      }
+  
+    } 
+
+    createAnswer = async () =>  {
+      try {
+        const answer = await this.peerConnection?.createAnswer();
+        return answer;
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    createOffer = async () => {
+      try {
+        const offer = await this.peerConnection?.createOffer();
+        return offer;
+      } catch (error) {
+        console.log(error);
+      }
+    }
 
   }
   

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef,useState ,ReactNode } from 'react';
 import { useAuth} from '../contexts/AuthContext';
+import WebSocketWrapper from './class/WebSocketWrapper';
+
 
 interface WebSocketContextValue {
   socket: WebSocket | null;
@@ -29,8 +31,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       console.log("No user is currently logged in");
     }
     // WebSocket接続の確立
-    const newSocket = new WebSocket(`${websocketServer}/ws?name=${user?.username}`);
-    setSocket(newSocket);
+    //const newSocket = new WebSocket(`${websocketServer}/ws?name=${user?.username}`);
+    const newSocket = new WebSocketWrapper(`${websocketServer}/ws?name=${user?.username}`);
+    setSocket(newSocket.getSocket());
 
     console.log("new WebSocket is created");
     
@@ -50,13 +53,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   };
 
   const updateSocket = () => {
-    //if (socket) {
-    //  socket.close(); // 既存のソケットを閉じる
-    //}
-    const newSocket = new WebSocket(`${websocketServer}/ws?name=${user?.username}`);
-    setSocket(newSocket);
-  };
-
+//    const newSocket = new WebSocket(`${websocketServer}/ws?name=${user?.username}`);
+    const newSocket = new WebSocketWrapper(`${websocketServer}/ws?name=${user?.username}`);
+    setSocket(newSocket.getSocket())
+  }
+  
   const value: WebSocketContextValue = {
     socket: socket,
     updateSocket,
