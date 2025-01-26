@@ -5,6 +5,7 @@ import WebRtc from './class/WebRtc';
 import { useAuth } from '../contexts/AuthContext';
 import type {Sdp,Ice,ChatMessage} from '../types/webrtc';
 import eventBus from './class/EventBus';
+import ConfirmDialog from './parts/ConfirmDialog';
 
 
 interface VideoChatProps {
@@ -16,56 +17,18 @@ interface VideoChatProps {
 
 const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver, sdp}) => {
   const [isConnected, setIsConnected] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const socket = useWebSocket();
   const user = useAuth();
+  //
+  const [closeMessage, setCloseMessage] = useState('');
+  const [isCloseOpen, setIsCloseOpen] = useState(false);
 
   useEffect(() => {
     console.log('isConnected changed:', isConnected);
   }, [isConnected]);
  
-  const initializePeerConnection = () => {
-    const pc = WebRtc.getRtcPeerConnection(); //
-
-    pc.ontrack = (event) => {
-      // console.log(event.streams);
-      const remoteStream = event.streams[0];
-      if (remoteVideoRef && remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
-      }
-    }; 
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('onicecandidate');
-
-        const messageObject = {
-          user_id : user.user?.username,
-          to_id : receiver,
-          message: { type: 'ice', candidate: event.candidate }
-        }
-        socket?.socket?.send(JSON.stringify(messageObject));
-      }
-    };
-
-  };
-
-  const setClose = (data: ChatMessage) => {
-    console.log(`setClose from ${data.user_id}`);
-    receiveDisconnect();
-  }
-
-  const setEventBus = () => {
-    // don't forget to remove eventBus
-    eventBus.on('setClose', setClose);
-  }
-
-  const offEventBus = () => {       
-    eventBus.off('setClose');
-  }
 
   useEffect(() => {
     if (!isOpen || sdp == null){ 
@@ -77,61 +40,70 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       const pc = WebRtc.getRtcPeerConnection(); //
       setIsConnected(true);
 
-      initializePeerConnection();
-      setEventBus();
+      initializePeerConnection(pc);
+      eventBus.on('setClose', setClose);
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach(
-        track => {
-          console.log('Adding track:', track.kind)
-          pc.addTrack(track, stream)
-        }
-      );
-    
-      // ビデオ要素への表示
-      if (localVideoRef && localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      } 
+      await setLocalVideo(pc);
+      
+      await WebRtc.setRemoteDescription(sdp);
 
-      try {
-        await pc.setRemoteDescription({
-          type: 'offer',
-          sdp: (sdp.message as Sdp).sdp
-        });
+      const answer = await WebRtc.createAnswer() as RTCSessionDescriptionInit;
+      await WebRtc.setLocalDescription(answer);
 
-        console.log('setRemoteDescription');
-      } catch (error) {
-        console.log("Offer setRemoteDescription", error);
-      }
-
-      const answer = await pc.createAnswer();
-      try {
-        await pc.setLocalDescription(answer);
-        console.log('setLocalDescription');
-      } catch (error) {
-        console.log(error);
-      }
-
-      const messageObject = {
-        user_id : user.user?.username,
-        to_id : receiver,
-        message :{type :'answer', sdp: answer.sdp}
-      } 
-      socket?.socket?.send(JSON.stringify(messageObject));    
+      const message = createMessage(user.user?.username as string, receiver, {type :'answer', sdp: answer.sdp});
+      socket?.socket?.send(JSON.stringify(message));    
     })()
   }, [sdp, isOpen]);
 
-  if (!isOpen) return null;
+  
+  const createMessage = (from: string, to: string,message:object) => {
+    const messageObject = {
+      user_id : from,
+      to_id : to,
+      message: message
+    }
 
-  // Open video chat 
-  const handleConnect = async () => {
-    const pc = WebRtc.getRtcPeerConnection(); //
-    console.log("signalingState:" + pc.signalingState);
-    setIsConnected(true);
+    return messageObject;
+  };
 
-    initializePeerConnection();
-    setEventBus();
 
+  const initializePeerConnection = (pc: RTCPeerConnection) => {
+    console.log("Initializing PeerConnection... signalingState:" + pc.signalingState);
+    pc.ontrack = (event) => {
+      console.log("ontrack evenvt for remote stream");
+      const remoteStream = event.streams[0];
+      if (remoteVideoRef && remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+    }; 
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        const message = createMessage(user.user?.username as string, receiver,
+           {type: 'ice', candidate: event.candidate});
+        socket?.socket?.send(JSON.stringify(message));
+
+        console.log("Sending ICE candidate:");
+      }
+    };
+
+  };
+
+  const setClose = () => {
+    receiveDisconnect();
+    displayCloseAlert("Cancel or Close from Peer : " + receiver);
+  }
+
+  const displayCloseAlert = (message: string) => {
+    setCloseMessage(message); 
+    setIsCloseOpen(true);
+  };
+
+  const closeConfirm = () => {
+    setIsCloseOpen(false);
+  };
+
+  const setLocalVideo =  async (pc: RTCPeerConnection) =>  {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     stream.getTracks().forEach(
       track => {
@@ -140,97 +112,65 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       }
     );
   
-    // ビデオ要素への表示
     if (localVideoRef && localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
-    }
+    } 
+  }
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+  // Open video chat 
+  const handleConnect = async () => {
+    const pc = WebRtc.getRtcPeerConnection(); //
 
-    const messageObject : ChatMessage = {
-      user_id : user.user?.username  as string,
-      to_id : receiver ,
-      message: { type: 'offer', sdp: offer.sdp } as Sdp   
-     }
-    socket?.socket?.send(JSON.stringify(messageObject));
+    console.log("signalingState:" + pc.signalingState);
+    setIsConnected(true);
+
+    initializePeerConnection(pc);
+    eventBus.on('setClose', setClose);
+
+    await setLocalVideo(pc);
+
+    const offer = await WebRtc.createOffer() as RTCSessionDescriptionInit;
+    await WebRtc.setLocalDescription(offer);
+
+    const message = createMessage(user.user?.username as string, receiver, {type :'offer', sdp: offer.sdp});
+    socket?.socket?.send(JSON.stringify(message));
   };
 
+  const closeVideo = (videoRef: HTMLVideoElement|null) => {
+    if (videoRef ) {
+      const stream = videoRef.srcObject as MediaStream;
+      const tracks = stream?.getTracks();
+      if (tracks) {
+        tracks.forEach(track => track.stop());
+      }
+      videoRef.srcObject = null;
+    }
+  }
+
   const handleDisconnect = () => {
-    const pc = WebRtc.getRtcPeerConnection(); 
-    offEventBus();
-
-    pc.close();
-    //WebRtc.reCreateRtcPeerConnection();
-
-    if (remoteVideoRef && remoteVideoRef.current) {
-      const remoteStream = remoteVideoRef.current.srcObject as MediaStream;
-      const tracks = remoteStream?.getTracks();
-      if (tracks) {
-        tracks.forEach(track => track.stop());
-      }
-      remoteVideoRef.current.srcObject = null;
-    }
-
-    if (localVideoRef && localVideoRef.current) {
-      const localStream = localVideoRef.current.srcObject as MediaStream;
-      const tracks = localStream?.getTracks();
-      if (tracks) {
-        tracks.forEach(track => track.stop());
-      }
-      localVideoRef.current.srcObject = null;
-    }
-
-    setIsConnected(false);
-    closeVideoChat();
+    receiveDisconnect();
 
      if (isConnected) {
-        const messageObject : ChatMessage = {
-          user_id : user.user?.username  as string,
-          to_id : receiver ,
-          message: { type: 'close'}   
-        }
-        socket.socket?.send(JSON.stringify(messageObject));
+        const message = createMessage(user.user?.username as string, receiver, {type :'close'});
+        socket.socket?.send(JSON.stringify(message));
      }
+     setIsConnected(false);
+     closeVideoChat();
   };
 
   const receiveDisconnect = () => {
     const pc = WebRtc.getRtcPeerConnection(); //
-    offEventBus();
+    eventBus.off('setClose');
 
     pc.close();
     //
-
-    if (remoteVideoRef && remoteVideoRef.current) {
-      const remoteStream = remoteVideoRef.current.srcObject as MediaStream;
-      const tracks = remoteStream?.getTracks();
-      if (tracks) {
-        tracks.forEach(track => track.stop());
-      }
-      remoteVideoRef.current.srcObject = null;
-    }
-
-    if (localVideoRef && localVideoRef.current) {
-      const localStream = localVideoRef.current.srcObject as MediaStream;
-      const tracks = localStream?.getTracks();
-      if (tracks) {
-        tracks.forEach(track => track.stop());
-      }
-      localVideoRef.current.srcObject = null;
-    }
-
+    closeVideo(remoteVideoRef.current);
+    closeVideo(localVideoRef.current);
     setIsConnected(false);
+
   };
 
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-    // ここでミュート処理を実装
-  };
-
-  const toggleVideo = () => {
-    setIsVideoEnabled(!isVideoEnabled);
-    // ここでビデオのON/OFF処理を実装
-  };
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -245,6 +185,12 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
             <X size={24} />
           </button>
         </div>
+
+        <ConfirmDialog
+          isOpen={isCloseOpen}
+          message={closeMessage}
+          onConfirm={closeConfirm}
+        />
 
         {/* Video Container */}
         <div className="relative h-[480px] mb-4">
@@ -270,23 +216,6 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
 
         {/* Controls */}
         <div className="flex justify-center space-x-4">
-          <button
-            onClick={toggleMute}
-            className={`p-3 rounded-full ${
-              isMuted ? 'bg-red-500' : 'bg-gray-700'
-            } hover:opacity-80 transition-opacity`}
-          >
-            {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
-          </button>
-          
-          <button
-            onClick={toggleVideo}
-            className={`p-3 rounded-full ${
-              !isVideoEnabled ? 'bg-red-500' : 'bg-gray-700'
-            } hover:opacity-80 transition-opacity`}
-          >
-            {isVideoEnabled ? <Video size={24} /> : <VideoOff size={24} />}
-          </button>
 
           <button
             onClick={isConnected ? handleDisconnect : handleConnect}

@@ -21,7 +21,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [websocketOpen, setWebsocketOpen] = useState(false);
+  const [websocketOpen, setWebsocketOpen] = useState(true);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [sdp, setSdp] = useState<ChatMessage | null>(null);
   const { socket , updateSocket} = useWebSocket();
@@ -30,6 +30,16 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
   const [selectedMsgUser, setSelectedMsgUser] = useState('');
   const BROAD = "broadcast";
 
+  const createMessage = (from: string, to: string,message:object) => {
+    const messageObject = {
+      user_id : from,
+      to_id : to,
+      message: message
+    }
+
+    return messageObject;
+  };
+
   const handleConfirm = () => {
     setIsConfirmOpen(false);
     openVideoChat(toName, sdp);  
@@ -37,7 +47,11 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
 
   const handleCancel = () => {
     setIsConfirmOpen(false);
+
+    const message = createMessage(user?.username as string, toName, {type :'close'});
+    socket?.send(JSON.stringify(message));
   };
+
 
   const showConfirm = (message: string, data: ChatMessage) => {
     setConfirmMessage(message);
@@ -84,14 +98,12 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
       //console.log("WebSocket connection is not established");
       return;
     }
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      setWebsocketOpen(true);
-    }
 
-    socket.onopen = function(event) {
-        console.log("WebSocket connection is opened");
-        setWebsocketOpen(true);
-    };
+    if (socket.readyState === WebSocket.OPEN){
+      setWebsocketOpen(true);
+    }else{
+      setWebsocketOpen(false);
+    }
   
     socket.onmessage = function(event) {
 
@@ -138,10 +150,10 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
         console.error(`WebSocket connection error: ${error}`);
         setWebsocketOpen(false);
     }
-
+    
     return () => {  
     };
-  }, [socket]);
+  }, [socket,socket?.readyState]);
 
   return (
     <div className="flex flex-col items-center space-y-2 p-4 bg-gray-100 rounded-lg shadow-md md:flex-row md:space-y-0 md:space-x-2">
@@ -176,7 +188,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
             </button>
           </div>
           <div className="w-full md:flex md:items-center md:space-x-2">
-            <label className="md:w-1/5 text-lg font-bold text-gray-700">Select User : </label>
+            <label className="md:w-1/5 text-lg font-bold text-gray-700">User : </label>
             <select
               value={selectedMsgUser}
               onChange={(e) => setSelectedMsgUser(e.target.value)}
