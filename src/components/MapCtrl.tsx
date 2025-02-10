@@ -6,6 +6,7 @@ import VideoChat from './videoChat';
 import { useAuth } from '../contexts/AuthContext';
 import SendMsgForm from './parts/SendMsgForm';
 import { ChatMessage } from '../types/webrtc';
+import eventBus from './class/EventBus';
 
 interface MapCtrlProps {
   position: { lat: number, lng: number };
@@ -32,23 +33,16 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
       setIsVideoChatOpen(false);
     }
   
-    const handleIdle = (event:MapEvent) => {
-    
-      const center = event.map.getCenter() as google.maps.LatLng;
-      const bounds = event.map.getBounds();
-      const ne = bounds?.getNorthEast() as google.maps.LatLng;
-      const radius = google.maps.geometry.spherical.computeDistanceBetween(center, ne);
 
-      // console.log('Map center:', event.map.getCenter()?.toJSON(),radius);
-  
+    const setUsersPosition = (lat: number, lng: number, radius: number) => {
       const locationQuery = {
         location: {
-          lat: center.lat(),
-          lng: center.lng()
+          lat: lat,
+          lng: lng
         },
         radius: radius
-      };
-      
+      }
+
       setPointerEventsEnabled(false);
       fetch('/usersinbounds', {
         method: 'POST',
@@ -73,7 +67,17 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
       .finally(() => {
         setPointerEventsEnabled(true);
       });
-   
+    }
+
+    const handleIdle = (event:MapEvent) => {
+    
+      const center = event.map.getCenter() as google.maps.LatLng;
+      const bounds = event.map.getBounds();
+      const ne = bounds?.getNorthEast() as google.maps.LatLng;
+      const radius = google.maps.geometry.spherical.computeDistanceBetween(center, ne);
+
+      // console.log('Map center:', event.map.getCenter()?.toJSON(),radius);     
+      setUsersPosition(center.lat(), center.lng(), radius);   
     } 
       
     useEffect(() => {
@@ -83,6 +87,7 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
         Gmap?.setCenter(position);
     }, [position]);
   
+
     return (
       <div>
         <VideoChat isOpen={isVideoChatOpen} closeVideoChat={closeVideoChat} receiver={receiver} sdp={sdp}/>
