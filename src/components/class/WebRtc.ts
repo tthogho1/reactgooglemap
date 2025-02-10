@@ -34,11 +34,13 @@ class WebRtc {
     
         pc.onsignalingstatechange = (event) => {
           console.log("signalingState:" + pc.signalingState);
-          if (pc.signalingState === 'stable')
-           // || pc.signalingState === 'have-remote-offer'
-           // || pc.signalingState === 'have-local-offer'
+          if (pc.signalingState === 'stable'
+            && pc.localDescription && pc.remoteDescription )
            {
             console.log('call setSavedCandidates');
+            console.log("remoteDescription:" + pc.remoteDescription); //pc.remoteDescription
+            console.log("localDescription:" + pc.localDescription);
+
             this.setSavedCandidates();
           }
         }
@@ -52,6 +54,7 @@ class WebRtc {
         iceCandidates.splice(index, 1); // 削除
       })
     }
+
     
     getRtcPeerConnection() {
       if (this.peerConnection === null 
@@ -78,9 +81,10 @@ class WebRtc {
 
     setCandidate = (data: ChatMessage) => {
       const ice = data.message as Ice;      
+      //this.ices.push(data);
 
       if (!this.peerConnection?.remoteDescription || this.peerConnection?.signalingState === 'closed' ||
-        !(this.peerConnection?.signalingState === 'stable')){
+        !(this.peerConnection?.signalingState === 'stable') || !this.peerConnection?.localDescription ){
          // || this.peerConnection?.signalingState === 'have-remote-offer'
          // || this.peerConnection?.signalingState === 'have-local-offer')) {
         console.log(`push ice candidate from ${data.user_id}` + this.peerConnection?.signalingState);
@@ -95,7 +99,6 @@ class WebRtc {
       ).catch(
         error => console.log('icecandidate error' + error)
       );
-
     }
 
     setRtcPeerConnection(RtcPeerConnection: RTCPeerConnection) {
