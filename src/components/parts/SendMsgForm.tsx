@@ -128,7 +128,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
             break;
           case 'user':
             console.log(`receive user from ${data.user_id}`);
-            //eventBus.emit('setUser', data);
+            eventBus.emit('setUser', data);
             break;
         }
       }else{
