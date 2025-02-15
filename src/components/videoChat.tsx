@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, use } from 'react';
 import { X, Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from 'lucide-react';
 import { useWebSocket } from './WebSocketProvider';
 import WebRtc from './class/WebRtc';
-import { useAuth } from '../contexts/AuthContext';
 import type {Sdp,Ice,ChatMessage} from '../types/webrtc';
+import { useAuth } from '../contexts/AuthContext';
 import eventBus from './class/EventBus';
 import ConfirmDialog from './parts/ConfirmDialog';
 
@@ -26,6 +26,16 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   const [isCloseOpen, setIsCloseOpen] = useState(false);
 
   useEffect(() => {
+    eventBus.on('setAnswer', setAnswer);
+    eventBus.on('setCandidate', setCandidate);
+
+    return () => {
+      eventBus.off('setAnswer');
+      eventBus.off('setCandidate');  
+    }
+  }, []);
+
+  useEffect(() => {
     console.log('isConnected changed:', isConnected);
   }, [isConnected]);
  
@@ -44,7 +54,6 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       eventBus.on('setClose', setClose);
 
       await setLocalVideo(pc);
-      
       await WebRtc.setRemoteDescription(sdp);
 
       const answer = await WebRtc.createAnswer() as RTCSessionDescriptionInit;
@@ -66,6 +75,13 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
     return messageObject;
   };
 
+  const setAnswer = (data: ChatMessage) => {
+    WebRtc.setAnswer(data);
+  };
+
+  const setCandidate = (data: ChatMessage) => {
+    WebRtc.setCandidate(data);
+  }
 
   const initializePeerConnection = (pc: RTCPeerConnection) => {
     console.log("Initializing PeerConnection... signalingState:" + pc.signalingState);

@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useEffect, useRef,useState ,ReactNode } from 'react';
 import { useAuth} from '../contexts/AuthContext';
 import WebSocketWrapper from './class/WebSocketWrapper';
+import { ChatMessage } from '../types/webrtc';
 
 
 interface WebSocketContextValue {
   socket: WebSocket | null;
   updateSocket: () => void;
   sendMessage: (message: string) => void;
+  sendMessageObject: (messageObject: ChatMessage) => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextValue | null>(null);
@@ -52,6 +54,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     }
   };
 
+  const sendMessageObject = (messageObject: ChatMessage) => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(messageObject));  
+    }  
+  }
+
   const updateSocket = () => {
 //    const newSocket = new WebSocket(`${websocketServer}/ws?name=${user?.username}`);
     const newSocket = new WebSocketWrapper(`${websocketServer}/ws?name=${user?.username}`);
@@ -61,7 +69,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const value: WebSocketContextValue = {
     socket: socket,
     updateSocket,
-    sendMessage
+    sendMessage,
+    sendMessageObject,
   };
 
   return (
