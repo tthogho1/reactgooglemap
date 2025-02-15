@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import ConfirmDialog  from './ConfirmDialog';
 import { useWebSocket } from '../WebSocketProvider';
-import { ChatMessage, Sdp } from '../../types/webrtc';
+import { ChatMessage, MessageContent } from '../../types/webrtc';
 import eventBus from '../class/EventBus';
 import { user } from '../../types/map';
 import { updatePositionOnServer } from '../../api/backend';
-import webRtc from '../class/WebRtc';
 import { FaRegFaceSmile, FaFaceSadCry } from "react-icons/fa6";
 
 interface ChildComponentProps {
@@ -24,18 +23,18 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
   const [websocketOpen, setWebsocketOpen] = useState(true);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [sdp, setSdp] = useState<ChatMessage | null>(null);
-  const { socket , updateSocket} = useWebSocket();
+  const { socket , updateSocket, sendMessageObject} = useWebSocket();
   //const {peerConnection,setAnswer} = useRTCPeerConnection();
   const [toName, setToName] = useState('');
   const [selectedMsgUser, setSelectedMsgUser] = useState('');
   const BROAD = "broadcast";
 
-  const createMessage = (from: string, to: string,message:object) => {
-    const messageObject = {
+  const createMessage = (from: string, to: string, message:MessageContent) => {
+    const messageObject:ChatMessage = {
       user_id : from,
       to_id : to,
       message: message
-    }
+    } 
 
     return messageObject;
   };
@@ -49,9 +48,9 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
     setIsConfirmOpen(false);
 
     const message = createMessage(user?.username as string, toName, {type :'close'});
-    socket?.send(JSON.stringify(message));
+    sendMessageObject(message);
+    //socket?.send(JSON.stringify(message));
   };
-
 
   const showConfirm = (message: string, data: ChatMessage) => {
     setConfirmMessage(message);
@@ -73,13 +72,11 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
   const handleSetWebsock = () => {
 
     if (message && socket) {
-        const messageObject = {
-            user_id : user?.username,
-            to_id : selectedMsgUser == BROAD ? "" : selectedMsgUser,
-            message: message
-        };
 
-        socket.send(JSON.stringify(messageObject));
+        const toName= selectedMsgUser == BROAD ? "" : selectedMsgUser;
+        const messageObject = createMessage(user?.username as string, toName, message as MessageContent);
+        sendMessageObject(messageObject);
+
         appendMessage(`Send: ${message}`);
         setMessage('');
 
@@ -87,15 +84,48 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
     }
   };
 
+
+  const retryConnect = () => {
+    updateSocket();
+    if (user !== null) {
+      updatePositionOnServer(user);
+    }
+  }
+
   useEffect(() => {
     console.log("WebSocket context updated:", socket);
   }, [socket]);
 
   useEffect(() => {
+    //console.log("set showConfirm");
+    eventBus.on('showConfirm', (data:ChatMessage)=>{
+      showConfirm(`receive offer from ${data.user_id}?`,data);
+    });
+
+    eventBus.on('appendMessage', (data:ChatMessage)=>{
+      appendMessage(`Receive from: [${data.user_id}] : ${data.message}`);
+    })
+
+    eventBus.on('retryConnect', ()=>{
+      retryConnect();
+    })
+
+    eventBus.on('socketStatus', (status:boolean)=>{
+      setWebsocketOpen(status);
+    })
+
+   return ()=>{
+    eventBus.off('showConfirm');
+    eventBus.off('appendMessage');
+    eventBus.off('retryConnect');
+    eventBus.off('socketStatus');
+   }
+  }, []);
+
+  useEffect(() => {
     if (!socket) {
       alert("WebSocket connection is not established");
       setWebsocketOpen(false);
-      //console.log("WebSocket connection is not established");
       return;
     }
 
@@ -104,57 +134,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
     }else{
       setWebsocketOpen(false);
     }
-  
-    socket.onmessage = function(event) {
 
-      const data = JSON.parse(event.data) as ChatMessage;
-      const sdp = data.message as Sdp;
-      if (sdp.type){
-        switch(sdp.type){
-          case 'offer':
-            showConfirm(`receive offer from ${data.user_id}?`,data);
-            break;
-          case 'answer':
-            console.log(`receive answer from ${data.user_id}`);
-            webRtc.setAnswer(data);
-            break;
-          case 'ice':
-            console.log(`receive ice from ${data.user_id} at ` + new Date());
-            webRtc.setCandidate(data);
-            break;
-          case 'close':
-            console.log(`receive close from ${data.user_id}`);
-            eventBus.emit('setClose', data);
-            break;
-          case 'user':
-            console.log(`receive user from ${data.user_id}`);
-            //eventBus.emit('setUser', data);
-            break;
-        }
-      }else{
-        appendMessage(`Receive from: [${data.user_id}] : ${data.message}`);
-      }
-    };
-
-    socket.onclose = function(event) {
-      console.error(`WebSocket connection is closed ${event.code} ${event.reason}`);  
-      if (event.code === 1006) {
-        setTimeout(() => {
-          updateSocket();
-          if (user !== null) {
-            updatePositionOnServer(user);
-          }
-        }, 2000);
-      }    
-      setWebsocketOpen(false);
-      appendMessage('System: WebSocket connection is closed');
-    };
-
-    socket.onerror = function(error) {
-        console.error(`WebSocket connection error: ${error}`);
-        setWebsocketOpen(false);
-    }
-    
     return () => {  
     };
   }, [socket,socket?.readyState]);

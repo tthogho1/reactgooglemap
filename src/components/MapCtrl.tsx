@@ -77,7 +77,7 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
       const radius = google.maps.geometry.spherical.computeDistanceBetween(center, ne);
 
       // console.log('Map center:', event.map.getCenter()?.toJSON(),radius);     
-      setUsersPosition(center.lat(), center.lng(), radius);   
+      setUsersPosition(position.lat, position.lng, radius);
     } 
       
     useEffect(() => {
@@ -87,6 +87,26 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
         Gmap?.setCenter(position);
     }, [position]);
   
+    useEffect(() => {
+      if (Gmap === null) {
+        console.log("Gmap is null");
+        return;
+      }else{
+        console.log("Gmap is not null");
+      }
+      eventBus.on('setUser', ()=>{
+        const center = Gmap?.getCenter() as google.maps.LatLng;
+        const bounds = Gmap?.getBounds();
+        const ne = bounds?.getNorthEast() as google.maps.LatLng;
+        const radius = google.maps.geometry.spherical.computeDistanceBetween(center, ne);
+
+        console.log(center.lat() + "/" + center.lng());
+        setUsersPosition(center.lat(),center.lng(), radius);
+      });
+      return () => {
+        eventBus.off('setUser');
+      };
+    }, [Gmap]);
 
     return (
       <div>
