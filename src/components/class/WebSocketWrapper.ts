@@ -11,9 +11,7 @@ class WebSocketWrapper {
       this.socket.onopen = () => {
         console.log(`WebSocket connection is opened to ${url}`);
       }
-
       this.socket.onmessage = function(event) {
-
         const data = JSON.parse(event.data) as ChatMessage;
         const sdp = data.message as Sdp;
         if (sdp && typeof sdp.type === 'string') {
@@ -37,6 +35,10 @@ class WebSocketWrapper {
             case 'user':
               console.log(`receive user from ${data.user_id}`);
               eventBus.emit('setUser', data);
+              break;
+            case 'rmuser':
+              console.log(`receive user from ${data.user_id}`);
+              eventBus.emit('setUser', data);  // same as 'user'
               break;
           }
         }else{

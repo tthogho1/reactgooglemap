@@ -9,7 +9,8 @@ type ChatMessage = {
     | Sdp
     | Ice
     | Close // Close is not protocol, use for disconnect opponent
-    | User;
+    | User
+    | RMUser;
   
   type Sdp = {
     type: string;
@@ -32,10 +33,17 @@ type ChatMessage = {
     location: { lat: number; lng: number };
   };
 
+  type RMUser = {
+    type: string,
+    user_id: string,
+    location: { lat: number; lng: number };
+  };
+
   type Candidate = {
     candidate: string;
     sdpMid: string;
     sdpMLineIndex: number;
   };
+
   
   export type { ChatMessage, MessageContent, Sdp, Ice, Candidate, Close, User };
