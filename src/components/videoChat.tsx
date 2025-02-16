@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, use } from 'react';
 import { X, Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from 'lucide-react';
-import { useWebSocket } from './WebSocketProvider';
+import { useWebSocket} from './WebSocketProvider';
 import WebRtc from './class/WebRtc';
-import type {Sdp,Ice,ChatMessage} from '../types/webrtc';
+import type {Sdp,Ice,ChatMessage, MessageContent, Candidate} from '../types/webrtc';
 import { useAuth } from '../contexts/AuthContext';
 import eventBus from './class/EventBus';
 import ConfirmDialog from './parts/ConfirmDialog';
@@ -19,7 +19,7 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   const [isConnected, setIsConnected] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const socket = useWebSocket();
+  const {socket,sendMessageObject} = useWebSocket();
   const user = useAuth();
   //
   const [closeMessage, setCloseMessage] = useState('');
@@ -60,19 +60,20 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       await WebRtc.setLocalDescription(answer);
 
       const message = createMessage(user.user?.username as string, receiver, {type :'answer', sdp: answer.sdp});
-      socket?.socket?.send(JSON.stringify(message));    
+      sendMessageObject(message);
+      //socket?.socket?.send(JSON.stringify(message));    
     })()
   }, [sdp, isOpen]);
 
   
-  const createMessage = (from: string, to: string,message:object) => {
+  const createMessage = (from: string, to: string,message:MessageContent) => {
     const messageObject = {
       user_id : from,
       to_id : to,
       message: message
     }
 
-    return messageObject;
+    return messageObject as ChatMessage;
   };
 
   const setAnswer = (data: ChatMessage) => {
@@ -96,8 +97,9 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         const message = createMessage(user.user?.username as string, receiver,
-           {type: 'ice', candidate: event.candidate});
-        socket?.socket?.send(JSON.stringify(message));
+           {type: 'ice', candidate: event.candidate as Candidate});
+        sendMessageObject(message);
+        //socket?.socket?.send(JSON.stringify(message));
 
         console.log("Sending ICE candidate:");
       }
@@ -149,7 +151,8 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
     await WebRtc.setLocalDescription(offer);
 
     const message = createMessage(user.user?.username as string, receiver, {type :'offer', sdp: offer.sdp});
-    socket?.socket?.send(JSON.stringify(message));
+    sendMessageObject(message);
+    //socket?.socket?.send(JSON.stringify(message));
   };
 
   const closeVideo = (videoRef: HTMLVideoElement|null) => {
@@ -168,7 +171,8 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
 
      if (isConnected) {
         const message = createMessage(user.user?.username as string, receiver, {type :'close'});
-        socket.socket?.send(JSON.stringify(message));
+        sendMessageObject(message);
+        //socket.socket?.send(JSON.stringify(message));
      }
      setIsConnected(false);
      closeVideoChat();
