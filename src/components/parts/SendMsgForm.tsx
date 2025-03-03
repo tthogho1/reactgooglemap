@@ -7,6 +7,7 @@ import eventBus from '../class/EventBus';
 import { user } from '../../types/map';
 import { updatePositionOnServer } from '../../api/backend';
 import { FaRegFaceSmile, FaFaceSadCry } from "react-icons/fa6";
+import {createMessage} from '../../util/helper';
 
 interface ChildComponentProps {
   // true if called
@@ -24,11 +25,11 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
   const [confirmMessage, setConfirmMessage] = useState('');
   const [sdp, setSdp] = useState<ChatMessage | null>(null);
   const { socket , updateSocket, sendMessageObject} = useWebSocket();
-  //const {peerConnection,setAnswer} = useRTCPeerConnection();
   const [toName, setToName] = useState('');
   const [selectedMsgUser, setSelectedMsgUser] = useState('');
   const BROAD = "broadcast";
 
+  /*
   const createMessage = (from: string, to: string, message:MessageContent) => {
     const messageObject:ChatMessage = {
       user_id : from,
@@ -37,7 +38,7 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
     } 
 
     return messageObject;
-  };
+  }; */
 
   const handleConfirm = () => {
     setIsConfirmOpen(false);

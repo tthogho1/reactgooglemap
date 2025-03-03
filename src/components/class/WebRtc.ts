@@ -121,7 +121,6 @@ class WebRtc {
       }
     }
 
-
     setLocalDescription = async (answer: RTCSessionDescriptionInit) => {
       try {
         await this.peerConnection?.setLocalDescription(answer);
