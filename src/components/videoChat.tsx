@@ -6,6 +6,7 @@ import type {Sdp,Ice,ChatMessage, MessageContent, Candidate} from '../types/webr
 import { useAuth } from '../contexts/AuthContext';
 import eventBus from './class/EventBus';
 import ConfirmDialog from './parts/ConfirmDialog';
+import { createMessage } from '../util/helper';
 
 
 interface VideoChatProps {
@@ -64,17 +65,6 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       //socket?.socket?.send(JSON.stringify(message));    
     })()
   }, [sdp, isOpen]);
-
-  
-  const createMessage = (from: string, to: string,message:MessageContent) => {
-    const messageObject = {
-      user_id : from,
-      to_id : to,
-      message: message
-    }
-
-    return messageObject as ChatMessage;
-  };
 
   const setAnswer = (data: ChatMessage) => {
     WebRtc.setAnswer(data);
@@ -188,6 +178,8 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
     closeVideo(localVideoRef.current);
     setIsConnected(false);
 
+    WebRtc.reCreateRtcPeerConnection();
+    //
   };
 
   if (!isOpen) return null;
