@@ -24,21 +24,11 @@ const SendMsgForm :React.FC<ChildComponentProps> = ({ openVideoChat,users }) => 
   const [websocketOpen, setWebsocketOpen] = useState(true);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [sdp, setSdp] = useState<ChatMessage | null>(null);
+  const [isCaller, setIsCaller] = useState(false);
   const { socket , updateSocket, sendMessageObject} = useWebSocket();
   const [toName, setToName] = useState('');
   const [selectedMsgUser, setSelectedMsgUser] = useState('');
   const BROAD = "broadcast";
-
-  /*
-  const createMessage = (from: string, to: string, message:MessageContent) => {
-    const messageObject:ChatMessage = {
-      user_id : from,
-      to_id : to,
-      message: message
-    } 
-
-    return messageObject;
-  }; */
 
   const handleConfirm = () => {
     setIsConfirmOpen(false);

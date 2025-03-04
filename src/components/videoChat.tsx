@@ -27,10 +27,12 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   const [isCloseOpen, setIsCloseOpen] = useState(false);
 
   useEffect(() => {
+    eventBus.on('setOffer', setOffer);
     eventBus.on('setAnswer', setAnswer);
     eventBus.on('setCandidate', setCandidate);
 
     return () => {
+      eventBus.off('setOffer');
       eventBus.off('setAnswer');
       eventBus.off('setCandidate');  
     }
@@ -55,16 +57,30 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       eventBus.on('setClose', setClose);
 
       await setLocalVideo(pc);
+     /* 
       await WebRtc.setRemoteDescription(sdp);
 
       const answer = await WebRtc.createAnswer() as RTCSessionDescriptionInit;
       await WebRtc.setLocalDescription(answer);
-
-      const message = createMessage(user.user?.username as string, receiver, {type :'answer', sdp: answer.sdp});
+    */
+      const offer = await WebRtc.createOffer() as RTCSessionDescriptionInit;
+      await WebRtc.setLocalDescription(offer);
+  
+      const message = createMessage(user.user?.username as string, receiver, {type :'offer', sdp: offer.sdp});
       sendMessageObject(message);
-      //socket?.socket?.send(JSON.stringify(message));    
     })()
-  }, [sdp, isOpen]);
+  }, [sdp,isOpen]);
+
+  const setOffer = async (data: ChatMessage) => {
+    await WebRtc.setRemoteDescription(data);
+
+    const answer = await WebRtc.createAnswer() as RTCSessionDescriptionInit;
+    await WebRtc.setLocalDescription(answer);
+
+    const message = createMessage(user.user?.username as string, receiver, {type :'answer', sdp: answer.sdp});
+    sendMessageObject(message);
+  };
+
 
   const setAnswer = (data: ChatMessage) => {
     WebRtc.setAnswer(data);
@@ -89,7 +105,6 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
         const message = createMessage(user.user?.username as string, receiver,
            {type: 'ice', candidate: event.candidate as Candidate});
         sendMessageObject(message);
-        //socket?.socket?.send(JSON.stringify(message));
 
         console.log("Sending ICE candidate:");
       }
@@ -137,12 +152,13 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
 
     await setLocalVideo(pc);
 
-    const offer = await WebRtc.createOffer() as RTCSessionDescriptionInit;
-    await WebRtc.setLocalDescription(offer);
+    //const offer = await WebRtc.createOffer() as RTCSessionDescriptionInit;
+    //await WebRtc.setLocalDescription(offer);
 
-    const message = createMessage(user.user?.username as string, receiver, {type :'offer', sdp: offer.sdp});
+    const message = createMessage(user.user?.username as string, receiver, {type :'OpenVideo'});
+    //const message = createMessage(user.user?.username as string, receiver, {type :'offer', sdp: offer.sdp});
     sendMessageObject(message);
-    //socket?.socket?.send(JSON.stringify(message));
+
   };
 
   const closeVideo = (videoRef: HTMLVideoElement|null) => {

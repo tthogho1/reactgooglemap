@@ -16,9 +16,13 @@ class WebSocketWrapper {
         const sdp = data.message as Sdp;
         if (sdp && typeof sdp.type === 'string') {
           switch(sdp.type){
+            case 'OpenVideo':
+              console.log(`receive OpenVideo from ${data.user_id}`);
+              eventBus.emit('showConfirm',data);
+              break;
             case 'offer':
               console.log(`receive offer from ${data.user_id}`);
-              eventBus.emit('showConfirm',data);
+              eventBus.emit('setOffer',data);
               break;
             case 'answer':
               console.log(`receive answer from ${data.user_id}`);
