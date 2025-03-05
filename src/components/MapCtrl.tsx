@@ -76,7 +76,6 @@ const MapCtrl : React.FC<MapCtrlProps> = ({ position, iam }: MapCtrlProps) => {
       const ne = bounds?.getNorthEast() as google.maps.LatLng;
       const radius = google.maps.geometry.spherical.computeDistanceBetween(center, ne);
 
-      // console.log('Map center:', event.map.getCenter()?.toJSON(),radius);     
       setUsersPosition(position.lat, position.lng, radius);
     } 
       

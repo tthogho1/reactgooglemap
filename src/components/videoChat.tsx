@@ -57,12 +57,7 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
       eventBus.on('setClose', setClose);
 
       await setLocalVideo(pc);
-     /* 
-      await WebRtc.setRemoteDescription(sdp);
 
-      const answer = await WebRtc.createAnswer() as RTCSessionDescriptionInit;
-      await WebRtc.setLocalDescription(answer);
-    */
       const offer = await WebRtc.createOffer() as RTCSessionDescriptionInit;
       await WebRtc.setLocalDescription(offer);
   
@@ -152,11 +147,7 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
 
     await setLocalVideo(pc);
 
-    //const offer = await WebRtc.createOffer() as RTCSessionDescriptionInit;
-    //await WebRtc.setLocalDescription(offer);
-
     const message = createMessage(user.user?.username as string, receiver, {type :'OpenVideo'});
-    //const message = createMessage(user.user?.username as string, receiver, {type :'offer', sdp: offer.sdp});
     sendMessageObject(message);
 
   };
@@ -178,7 +169,6 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
      if (isConnected) {
         const message = createMessage(user.user?.username as string, receiver, {type :'close'});
         sendMessageObject(message);
-        //socket.socket?.send(JSON.stringify(message));
      }
      setIsConnected(false);
      closeVideoChat();
@@ -194,8 +184,6 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
     closeVideo(localVideoRef.current);
     setIsConnected(false);
 
-    WebRtc.reCreateRtcPeerConnection();
-    //
   };
 
   if (!isOpen) return null;
