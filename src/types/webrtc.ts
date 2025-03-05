@@ -10,7 +10,8 @@ type ChatMessage = {
     | Ice
     | Close // Close is not protocol, use for disconnect opponent
     | User
-    | RMUser;
+    | RMUser
+    | OpenVideo;
   
   type Sdp = {
     type: string;
@@ -27,6 +28,9 @@ type ChatMessage = {
     type: string;
   };
 
+  type OpenVideo = {
+    type: string,
+  }
   type User = {
     type: string,
     user_id: string,
