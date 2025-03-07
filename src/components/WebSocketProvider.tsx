@@ -65,7 +65,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     const newSocket = new WebSocketWrapper(`${websocketServer}/ws?name=${user?.username}`);
     setSocket(newSocket.getSocket())
   }
-  
+ 
   const value: WebSocketContextValue = {
     socket: socket,
     updateSocket,

@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Menu,X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import {useWebSocket } from '../WebSocketProvider';
 
 const Header = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { socket } = useWebSocket();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -16,6 +18,7 @@ const Header = () => {
     event.preventDefault(); 
     try{
       await logout();
+      socket?.close();
       navigate("/login");
       console.log("サインアウト処理を実行");
     }catch(error){

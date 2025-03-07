@@ -71,6 +71,8 @@ class WebSocketWrapper {
     getSocket() {
       return this.socket;
     }
+
+
 } 
 
 export default WebSocketWrapper
