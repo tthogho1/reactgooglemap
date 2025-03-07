@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
-
+  
   useEffect(() => {
     checkAuthState();
   }, []);
@@ -53,7 +53,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await signOut();
       setIsAuthenticated(false);
       setUser(null);
-      console.log("ログアウトしました。");
+//      socket?.close();
+
+      console.log("logout complete");
 
     } catch (error) {
       throw error;
