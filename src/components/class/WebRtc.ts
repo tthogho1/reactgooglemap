@@ -149,6 +149,13 @@ class WebRtc {
       }
     }
 
+    closePeerConnection = () => {
+      console.log("closePeerConnection");
+
+      this.peerConnection?.close();
+      this.peerConnection = null;
+    }
+
   }
   
   const instance = WebRtc.getInstance();

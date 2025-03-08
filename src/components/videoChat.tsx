@@ -175,10 +175,11 @@ const VideoChat : React.FC<VideoChatProps>= ({ isOpen , closeVideoChat, receiver
   };
 
   const receiveDisconnect = () => {
-    const pc = WebRtc.getRtcPeerConnection(); //
+
+    WebRtc.closePeerConnection();
     eventBus.off('setClose');
 
-    pc.close();
+    //pc.close();
     //
     closeVideo(remoteVideoRef.current);
     closeVideo(localVideoRef.current);
